@@ -1,8 +1,62 @@
-# Welcome to your Expo app 👋
+# GPS Attendance Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A cross-platform mobile app (Android & iOS) that automatically clocks employees in and out using GPS geofencing — no manual punch-in required.
 
-## Get started
+Built with **React Native + Expo**.
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><b>Login</b></td>
+    <td align="center"><b>Dashboard</b></td>
+    <td align="center"><b>Work Logs</b></td>
+    <td align="center"><b>Live Tracking</b></td>
+    <td align="center"><b>Staff Directory</b></td>
+  </tr>
+  <tr>
+    <td><img src="assets/images/trackerapp/tracker1.jpeg" width="160"/></td>
+    <td><img src="assets/images/trackerapp/tracker4.jpeg" width="160"/></td>
+    <td><img src="assets/images/trackerapp/tracker2.jpeg" width="160"/></td>
+    <td><img src="assets/images/trackerapp/tracker3.jpeg" width="160"/></td>
+    <td><img src="assets/images/trackerapp/tracker5.jpeg" width="160"/></td>
+  </tr>
+</table>
+
+---
+
+## Features
+
+- **Automatic Geofencing** — GPS detects office entry/exit and clocks in/out automatically
+- **Background Location Tracking** — Works even when the app is closed, via `expo-task-manager`
+- **Anti-Fraud Protection** — Rejects mocked GPS, filters low-accuracy signals, ignores brief false-positive exits (<5 min)
+- **Live Map View** — Google Maps with animated geofence circle showing the office zone
+- **Today's Focus Gauge** — Visual arc showing hours worked vs. 8-hour target
+- **Work Logs** — Full attendance history with daily calendar, total hours, and shift count
+- **Admin Panel** — Staff directory, live team map, employee status tracking
+- **Push Notifications** — Instant alerts on clock-in and clock-out
+- **Offline-First** — Sessions stored locally; designed for backend sync
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.81 + Expo SDK 54 |
+| Navigation | Expo Router (file-based) |
+| Maps | react-native-maps (Google Maps) |
+| Location | expo-location + expo-task-manager |
+| Animations | react-native-reanimated |
+| Storage | AsyncStorage + Firebase |
+| State | React Context API |
+| Language | TypeScript |
+
+---
+
+## Getting Started
 
 1. Install dependencies
 
@@ -16,35 +70,10 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+Run on Android emulator, iOS simulator, or scan the QR code with Expo Go.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## Backend Integration
 
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The app is designed to sync with a Django REST Framework backend. See [BACKEND_INTEGRATION.md](BACKEND_INTEGRATION.md) for API endpoint definitions, payload structure, and a sample DRF serializer.

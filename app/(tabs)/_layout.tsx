@@ -1,33 +1,49 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Tabs, router } from 'expo-router';
+import React, { useEffect } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import CustomTabBar from '@/components/CustomTabBar';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    if (!user) {
+      router.replace('/(auth)/login');
+    }
+  }, [user]);
 
   return (
     <Tabs
+      key={user?.role} // Force re-render when role changes
+      tabBar={props => <CustomTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="admin"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Staff',
+          href: isAdmin ? '/admin' : null,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'Logs',
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Menu',
         }}
       />
     </Tabs>
