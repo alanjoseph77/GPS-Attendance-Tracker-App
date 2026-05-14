@@ -1,39 +1,124 @@
+# GPS Attendance App — Backend Architecture
 
-# GPS Attendance App - Backend Integration Notes (Django REST)
+The app uses **Firebase Firestore** as its real-time cloud backend. No custom server is required.
 
-This mobile app is designed to be easily connected to a Django REST Framework (DRF) backend.
+---
 
-### 1. Typical API Endpoints needed:
-- `POST /api/auth/login/` -> Returns JWT token.
-- `POST /api/attendance/session/` -> Syncs a completed session.
-- `GET /api/attendance/history/` -> Retrieves user session history.
+## Firebase Setup
 
-### 2. Payload Structure for Syncing:
-When a geofence exit event occurs and a session is closed, you can sync the following structure:
+File: `services/firebaseConfig.ts`
 
-```json
-{
-  "id": "1706692200000",
-  "enter_time": "2026-01-30T10:00:00Z",
-  "exit_time": "2026-01-30T18:00:00Z",
-  "duration_seconds": 28800,
-  "lat": 12.9716,
-  "lng": 77.5946
-}
+```ts
+const firebaseConfig = {
+    apiKey: "...",
+    authDomain: "attendancegps-ce4d4.firebaseapp.com",
+    projectId: "attendancegps-ce4d4",
+    storageBucket: "attendancegps-ce4d4.firebasestorage.app",
+    messagingSenderId: "790854453367",
+    appId: "..."
+};
 ```
 
-### 3. Implementation Steps:
-1.  **Update StorageService**: Add a `syncToBackend` method that iterates through local sessions and sends them to the server.
-2.  **Add Auth Context**: Store the JWT token in `AsyncStorage` and include it in the `Authorization` header of all requests.
-3.  **Background Sync**: Use `BackgroundFetch` or trigger sync during `onRefresh` in the mobile app.
+Exports:
+- `db` — Firestore database instance
+- `auth` — Firebase Auth with AsyncStorage persistence (stays logged in across app restarts)
 
-### 4. Sample DRF Serializer:
-```python
-from rest_framework import serializers
-from .models import AttendanceSession
+---
 
-class AttendanceSessionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AttendanceSession
-        fields = ['id', 'enter_time', 'exit_time', 'duration_seconds', 'lat', 'lng']
+## Firestore Collections
+
+### `users`
+Stores all staff and admin accounts.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Employee ID (e.g. `EMP001`) |
+| `name` | string | Full name |
+| `password` | string | Plain text (migrate to Firebase Auth for production) |
+| `role` | `admin` \| `staff` | Controls dashboard view |
+| `lastLocation.latitude` | number | Last known GPS latitude |
+| `lastLocation.longitude` | number | Last known GPS longitude |
+| `lastLocation.timestamp` | string | ISO timestamp of last GPS ping |
+
+### `sessions`
+Stores completed attendance sessions (clock-out recorded).
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string | Unique session ID (timestamp-based) |
+| `userId` | string | Links to `users` collection |
+| `enter_time` | string | ISO timestamp of geofence entry |
+| `exit_time` | string | ISO timestamp of geofence exit |
+| `duration_seconds` | number | Total time inside office |
+| `lat` | number | Latitude at time of entry |
+| `lng` | number | Longitude at time of entry |
+
+### `active_sessions`
+Stores the currently open session per user (still inside office).
+
+- Keyed by `userId`
+- Cleared and marked `active: false` on geofence exit
+- Used to resume session state if the app restarts mid-shift
+
+---
+
+## Data Flow
+
 ```
+GPS Update (every 30s or on movement)
+        │
+        ▼
+AsyncStorage  ──────────────────────────────────┐
+(instant, local, works offline)                 │
+        │                                       │
+        ▼                                       │
+Firebase Firestore                              │
+(cloud sync, best-effort)                       │
+        │                                       │
+   [on failure] ────────────────────────────────┘
+        │                              falls back to local
+        ▼
+Admin real-time map (onSnapshot listener)
+```
+
+Every write tries Firestore first and silently falls back to AsyncStorage on failure. Reads do the same in reverse — Firestore first, local fallback.
+
+---
+
+## Real-time Admin Tracking
+
+`subscribeToStaffLocation()` in `services/storageService.ts` opens a **live Firestore `onSnapshot` listener** on the `users` collection filtered by `role == staff`.
+
+- Streams location updates to the Admin map without polling
+- Unsubscribes automatically when the Admin screen unmounts
+
+```ts
+export const subscribeToStaffLocation = (callback: (users: User[]) => void) => {
+    const q = query(collection(db, "users"), where("role", "==", "staff"));
+    return onSnapshot(q, (snapshot) => {
+        const users: User[] = [];
+        snapshot.forEach((doc) => users.push(doc.data() as User));
+        callback(users);
+    });
+};
+```
+
+---
+
+## Offline-First Strategy
+
+| Scenario | Behaviour |
+|---|---|
+| No internet on clock-in | Session saved to AsyncStorage immediately |
+| Internet restored | Next write syncs to Firestore |
+| App killed mid-shift | `active_sessions` in Firestore restores state on relaunch |
+| Firestore read fails | Falls back to local AsyncStorage data |
+
+---
+
+## Production Hardening (Recommended Next Steps)
+
+1. **Migrate passwords to Firebase Auth** — replace plain-text `password` field with `firebase/auth` email+password or phone OTP
+2. **Add Firestore Security Rules** — currently open; restrict reads/writes by `userId` and `role`
+3. **Session conflict resolution** — handle edge case where two devices log in as the same user
+4. **Background sync queue** — queue failed Firestore writes and retry when connectivity returns
